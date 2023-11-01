@@ -1,48 +1,17 @@
-## How to install
+# 버비 로켓 체스게임
+>증식하는 폰(pawn)을 조합해, 비숍(로켓), 나이트(유탄), 록(방패), 퀸(관통탄)을 만들어 왕을 지키고, 상대방의 왕을 잡아라!
+>  ... 라는 간단한 게임입니다.
 
-```sh
-npm install
-```
+## 현재까지 완성된 목록
+>1. 폰 증식 및 간단한 애니메이션
+>2. 카메라 컨트롤(이동과 줌인/아웃)
 
-## How to run in debug mode
-
-```sh
-# Builds the project and opens it in a new browser tab. Auto-reloads when the project changes.
-npm start
-```
-
-## How to build in release mode
-
-```sh
-# Builds the project and places it into the `dist` folder.
-npm run build
-```
-
-## How to run unit tests
-
-```sh
-# Runs tests in Firefox
-npm test -- --firefox
-
-# Runs tests in Chrome
-npm test -- --chrome
-
-# Runs tests in Safari
-npm test -- --safari
-```
-
-## What does each file do?
-
-* `Cargo.toml` contains the standard Rust metadata. You put your Rust dependencies in here. You must change this file with your details (name, description, version, authors, categories)
-
-* `package.json` contains the standard npm metadata. You put your JavaScript dependencies in here. You must change this file with your details (author, name, version)
-
-* `webpack.config.js` contains the Webpack configuration. You shouldn't need to change this, unless you have very special needs.
-
-* The `js` folder contains your JavaScript code (`index.js` is used to hook everything into Webpack, you don't need to change it).
-
-* The `src` folder contains your Rust code.
-
-* The `static` folder contains any files that you want copied as-is into the final build. It contains an `index.html` file which loads the `index.js` file.
-
-* The `tests` folder contains your Rust unit tests.
+## 앞으로 할 내용
+>1. 타일 드래그로 주변 폰 조합
+>2. 비숍 구현
+>3. 록 구현
+>4. 나이트 구현
+>5. 퀸 구현
+>6. 게임 승리, 패배 트리거와 ui생성
+>7. 아주 간단한 인공지능 추가
+>8. 온라인 기능 추가 및 업로드
