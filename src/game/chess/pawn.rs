@@ -348,6 +348,24 @@ pub fn selected_event(
             }
             //이벤트 발생
         }
+        else if rook_patton(base_hex, hex_list.clone()){
+            let base_tile = res_map.entities[&base_hex];
+            for hex in hex_list.iter(){
+                let pawn = res_pawn.pawn_list.remove(hex).unwrap();
+                res_pawn.blue_pawn_list.remove(hex);
+                let tile = res_map.entities[hex];
+                res_map.blue_entities.remove(&tile);
+                commands.entity(tile).insert(
+                    res_map.default_mat.clone()
+                );
+                commands.entity(pawn).insert(
+                    CombinationTarget{
+                        trans: query_transform.get(base_tile).unwrap().clone(),
+                        time: 0.
+                    }
+                );
+            }
+        }
     }
 }
 
@@ -382,6 +400,48 @@ pub fn bishop_patton(
         [Hex{x: base_hex.x - 1,y: base_hex.y + 1}, Hex{x: base_hex.x - 2,y: base_hex.y + 2}],
         [Hex{x: base_hex.x - 1,y: base_hex.y + 1}, Hex{x: base_hex.x - 1,y: base_hex.y + 2}],
         [Hex{x: base_hex.x - 1,y: base_hex.y + 1}, Hex{x: base_hex.x - 2,y: base_hex.y + 1}],
+    ];
+    let mut is_ok = true;
+    for p in patton.iter(){
+        is_ok = true;
+        for pp in p.iter(){
+            if !hex_list.contains(pp){
+                is_ok = false;
+                break;
+            }
+        }
+        if is_ok{
+            break;
+        }
+    }
+    return is_ok;
+}
+
+pub fn rook_patton(
+    base_hex: Hex,
+    hex_list: HashSet<Hex>
+) -> bool{
+    if hex_list.len() != 3{
+        return false;
+    }
+    let patton = [
+        [Hex{x: base_hex.x + 1,y: base_hex.y}, Hex{x: base_hex.x + 1,y: base_hex.y - 1}],
+        [Hex{x: base_hex.x + 1,y: base_hex.y}, Hex{x: base_hex.x,y: base_hex.y + 1}],
+
+        [Hex{x: base_hex.x,y: base_hex.y + 1}, Hex{x: base_hex.x + 1,y: base_hex.y}],
+        [Hex{x: base_hex.x,y: base_hex.y + 1}, Hex{x: base_hex.x - 1,y: base_hex.y + 1}],
+
+        [Hex{x: base_hex.x - 1,y: base_hex.y + 1}, Hex{x: base_hex.x,y: base_hex.y + 1}],
+        [Hex{x: base_hex.x - 1,y: base_hex.y + 1}, Hex{x: base_hex.x - 1,y: base_hex.y}],
+
+        [Hex{x: base_hex.x - 1,y: base_hex.y}, Hex{x: base_hex.x - 1,y: base_hex.y + 1}],
+        [Hex{x: base_hex.x - 1,y: base_hex.y}, Hex{x: base_hex.x,y: base_hex.y - 1}],
+        
+        [Hex{x: base_hex.x,y: base_hex.y - 1}, Hex{x: base_hex.x - 1,y: base_hex.y}],
+        [Hex{x: base_hex.x,y: base_hex.y - 1}, Hex{x: base_hex.x + 1,y: base_hex.y - 1}],
+
+        [Hex{x: base_hex.x + 1,y: base_hex.y - 1}, Hex{x: base_hex.x,y: base_hex.y - 1}],
+        [Hex{x: base_hex.x + 1,y: base_hex.y - 1}, Hex{x: base_hex.x + 1,y: base_hex.y}],
     ];
     let mut is_ok = true;
     for p in patton.iter(){
