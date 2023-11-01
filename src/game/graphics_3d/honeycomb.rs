@@ -1,7 +1,7 @@
 use std::{f32::consts::PI, collections::{HashMap, HashSet}};
 
-use bevy::{prelude::*, render::render_resource::PrimitiveTopology};
-use bevy_mod_picking::{PickableBundle, prelude::{Pointer, On, Listener, Over, Out, RaycastPickTarget}};
+use bevy::{prelude::*, render::render_resource::PrimitiveTopology, input::mouse::MouseButtonInput};
+use bevy_mod_picking::{PickableBundle, prelude::{Pointer, On, Listener, Over, Out, RaycastPickTarget, Click, Down}};
 use hexx::*;
 // use wasm_bindgen::JsValue;
 // use web_sys::console;
@@ -74,19 +74,28 @@ pub struct Map {
     pub entities: HashMap<Hex, Entity>,
     pub entities_forentity: HashMap<Entity, Hex>,
     pub blocked_coords: HashSet<Hex>,
-    pub path_entities: HashSet<Entity>,
+    pub path_list: HashSet<Hex>,
+    pub selected_list: HashSet<Hex>,
+    pub selected_base: Hex,
     pub blue_entities: HashSet<Entity>,
     pub red_entities: HashSet<Entity>,
     pub layout: HexLayout,
     pub default_mat: Handle<StandardMaterial>,
     pub red_mat: Handle<StandardMaterial>,
     pub blue_mat: Handle<StandardMaterial>,
+    pub path_mat: Handle<StandardMaterial>,
     pub highlite_mat :Handle<StandardMaterial>,
+    pub seleced_mod: bool,
 }
 
 #[derive(Component)]
 pub struct Honeycomb;
 
+#[derive(Event)]
+pub struct HexSelecedEndEvent{
+    pub seleced_list: HashSet<Hex>,
+    pub base_seleced: Hex
+}
 pub fn setup_grid(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
@@ -98,9 +107,10 @@ pub fn setup_grid(
     };
     // materials
     let default_mat = materials.add(Color::WHITE.into());
-    let red_mat = materials.add(Color::RED.into());
-    let blue_mat = materials.add(Color::BLUE.into());
+    let blue_mat = materials.add(Color::rgb(0.18, 0.44, 0.725).into());
+    let red_mat = materials.add(Color::rgb(0.858, 0.266, 0.333).into());
     let highlite_mat = materials.add(Color::LIME_GREEN.into());
+    let path_mat = materials.add(Color::rgb(0.4, 0.627, 0.568).into());
 
     // mesh
     let mesh = hexagonal_column(HEX_SIZE);
@@ -124,7 +134,8 @@ pub fn setup_grid(
                     PickableBundle::default(),
                     RaycastPickTarget::default(),
                     On::<Pointer<Over>>::run(on_over),
-                    On::<Pointer<Out>>::run(on_out)
+                    On::<Pointer<Out>>::run(on_out),
+                    On::<Pointer<Down>>::run(on_click)
                 ))
                 .id();
             entities_forentity.insert(id, hex);
@@ -136,27 +147,76 @@ pub fn setup_grid(
         default_mat,
         blocked_coords,
         entities_forentity,
-        path_entities: Default::default(),
+        path_list: Default::default(),
+        selected_list: Default::default(),
         layout,
         red_mat,
         blue_mat,
         highlite_mat,
+        path_mat,
         blue_entities: Default::default(),
         red_entities: Default::default(),
+        seleced_mod: false,
+        selected_base: Hex::ZERO
     };
     //console::log_1(&JsValue::from_str(format!("{:?}\n", map).as_str()));
     commands.insert_resource(map);
 }
 
+pub fn selected_mod(
+    mut events_seleted: EventReader<MouseButtonInput>,
+    mut res_grid: ResMut<Map>,
+    mut events: EventWriter<HexSelecedEndEvent>,
+    mut commands: Commands
+){
+    for ev in events_seleted.iter(){
+        if ev.button == MouseButton::Left{
+            match ev.state {
+                bevy::input::ButtonState::Pressed => {
+                    res_grid.seleced_mod = true;
+                },
+                bevy::input::ButtonState::Released => {
+                    res_grid.seleced_mod = false;
+                    events.send(HexSelecedEndEvent{
+                        seleced_list: res_grid.selected_list.clone(),
+                        base_seleced: res_grid.selected_base
+                    });
+                    for ele in res_grid.selected_list.iter() {
+                        let target = res_grid.entities[ele];
+                        if res_grid.blue_entities.contains(&target){
+                            commands.entity(target).insert(res_grid.blue_mat.clone());
+                        }
+                        else if res_grid.red_entities.contains(&target){
+                            commands.entity(target).insert(res_grid.red_mat.clone());
+                        }
+                        else{
+                            commands.entity(target).insert(res_grid.default_mat.clone());
+                        }
+                    }
+                    res_grid.selected_list.clear();
+                }
+            }
+        }
+    }
+}
+
 fn on_over(
     mut commands: Commands,
     event: Listener<Pointer<Over>>,
-    grid: Res<Map>,
+    mut grid: ResMut<Map>
 ){
     let target = event.target;
-    commands.entity(target).insert(
-        grid.highlite_mat.clone()
-    );
+    if grid.seleced_mod{
+        let seleced_hex = grid.entities_forentity[&target];
+        grid.selected_list.insert(seleced_hex);
+        commands.entity(target).insert(
+            grid.path_mat.clone()
+        );
+    }else{
+        commands.entity(target).insert(
+            grid.highlite_mat.clone()
+        );
+    }
 }
 
 fn on_out(
@@ -165,7 +225,10 @@ fn on_out(
     grid: Res<Map>,
 ){
     let target = event.target;
-    if grid.blue_entities.contains(&target){
+    if grid.selected_list.contains(&grid.entities_forentity[&target]){
+        commands.entity(target).insert(grid.path_mat.clone());
+    }
+    else if grid.blue_entities.contains(&target){
         commands.entity(target).insert(grid.blue_mat.clone());
     }
     else if grid.red_entities.contains(&target){
@@ -173,5 +236,21 @@ fn on_out(
     }
     else{
         commands.entity(target).insert(grid.default_mat.clone());
+    }
+}
+
+fn on_click(
+    mut commands: Commands,
+    event: Listener<Pointer<Down>>,
+    mut grid: ResMut<Map>
+){
+    let target = event.target;
+    if grid.seleced_mod{
+        let seleced_hex = grid.entities_forentity[&target];
+        grid.selected_base = seleced_hex;
+        grid.selected_list.insert(seleced_hex);
+        commands.entity(target).insert(
+            grid.path_mat.clone()
+        );
     }
 }

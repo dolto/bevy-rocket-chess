@@ -31,9 +31,13 @@ impl Plugin for Graphics3dPlugins{
         app
         // .init_resource::<HuneycombRes>()
         // .add_state::<HuneycombSpawnState>()
+        .add_event::<HexSelecedEndEvent>()
         .add_systems(Startup, (
             spawn_light,
             setup_grid
+        ))
+        .add_systems(Update, (
+            selected_mod,
         ))
         ;
         // .add_systems(Update, (

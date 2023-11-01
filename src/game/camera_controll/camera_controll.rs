@@ -29,7 +29,7 @@ pub fn camera_spawn(
     mut commands: Commands,
 ){
     let location = Transform::from_xyz(
-        0.,5.,13.
+        0.,6.,13.
     ).looking_at(Vec3::ZERO, Vec3::Y);
     let camera = commands.spawn((
         Camera3dBundle{
@@ -72,7 +72,7 @@ pub fn move_camera(
     }
     for ev in event_wheel.iter(){
         res_camerainfo.fov = (PI/3.).min((PI / 15.).max(res_camerainfo.fov + ev.y * ZOOM_SPEED * -1.));
-        println!("fov:{}, min:{}", res_camerainfo.fov, (PI/3.));
+        //println!("fov:{}, min:{}", res_camerainfo.fov, (PI/3.));
         commands.entity(res_camerainfo.camera_entity).insert(
             Projection::Perspective(PerspectiveProjection { fov: res_camerainfo.fov, ..Default::default()})
         );

@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-use self::pawn::{setup_asset_pawn, test_setup, spawn_pawn_timer, spawn_pawn_event, PawnSpawn, PawnSetup, pawn_spawn_anim_is_end, pawn_action_anim_is_end};
+use self::pawn::{setup_asset_pawn, test_setup, spawn_pawn_timer, spawn_pawn_event, PawnSpawn, PawnSetup, pawn_spawn_anim_is_end, pawn_action_anim_is_end, selected_event, pawn_combination_is_end};
 
 mod pawn;
 
@@ -22,6 +22,8 @@ impl Plugin for ChessGamePlugin {
             spawn_pawn_event,
             pawn_spawn_anim_is_end,
             pawn_action_anim_is_end,
+            selected_event,
+            pawn_combination_is_end
         ));
     }
 }
