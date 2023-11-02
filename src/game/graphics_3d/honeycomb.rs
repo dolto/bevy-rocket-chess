@@ -135,7 +135,8 @@ pub fn setup_grid(
                     RaycastPickTarget::default(),
                     On::<Pointer<Over>>::run(on_over),
                     On::<Pointer<Out>>::run(on_out),
-                    On::<Pointer<Down>>::run(on_click)
+                    On::<Pointer<Down>>::run(on_click),
+                    //On::<Pointer<Down>>::run(on_click2)
                 ))
                 .id();
             entities_forentity.insert(id, hex);
@@ -210,7 +211,7 @@ fn on_over(
         let seleced_hex = grid.entities_forentity[&target];
         grid.selected_list.insert(seleced_hex);
         commands.entity(target).insert(
-            grid.path_mat.clone()
+            grid.highlite_mat.clone()
         );
     }else{
         commands.entity(target).insert(
@@ -225,7 +226,11 @@ fn on_out(
     grid: Res<Map>,
 ){
     let target = event.target;
-    if grid.selected_list.contains(&grid.entities_forentity[&target]){
+    let target_hex = grid.entities_forentity[&target];
+    if grid.selected_list.contains(&target_hex){
+        commands.entity(target).insert(grid.highlite_mat.clone());
+    }
+    else if grid.path_list.contains(&target_hex){
         commands.entity(target).insert(grid.path_mat.clone());
     }
     else if grid.blue_entities.contains(&target){
@@ -250,7 +255,14 @@ fn on_click(
         grid.selected_base = seleced_hex;
         grid.selected_list.insert(seleced_hex);
         commands.entity(target).insert(
-            grid.path_mat.clone()
+            grid.highlite_mat.clone()
         );
     }
+}
+fn on_click2(
+    mut commands: Commands,
+    event: Listener<Pointer<Down>>,
+    mut grid: ResMut<Map>
+){
+    println!("더한 클릭!");
 }

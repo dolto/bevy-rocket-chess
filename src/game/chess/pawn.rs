@@ -24,11 +24,24 @@ pub struct PawnRes{
     action_animation: (Handle<AnimationClip>, Name)
 }
 
+pub enum SpawnCategory{
+    Bishop,
+    Rook,
+    Knight,
+    Qean
+}
+
 #[derive(Event)]
 pub struct PawnSpawn{
     blue_team: bool,
     pos: Hex,
     entity: Entity
+}
+#[derive(Event)]
+pub struct OtherSpawn{
+    pub blue_team: bool,
+    pub base_pos: Hex,
+    pub category: SpawnCategory
 }
 
 #[derive(Component)]
@@ -182,7 +195,7 @@ pub fn spawn_pawn_timer(
 
 pub fn pawn_spawn_anim_is_end(
     mut commands: Commands,
-    mut query_player: Query<(&mut AnimationPlayer, Entity), With<SpawnAnimToggle>>,
+    mut query_player: Query<(&mut AnimationPlayer, Entity), (With<SpawnAnimToggle>, With<Pawn>)>,
     res_pawn: Res<PawnRes>,
 ){
     for (mut player, ent) in query_player.iter_mut(){
@@ -196,7 +209,7 @@ pub fn pawn_spawn_anim_is_end(
 }
 pub fn pawn_action_anim_is_end(
     mut commands: Commands,
-    mut query_player: Query<(&mut AnimationPlayer, Entity), With<ActionAnimToggle>>,
+    mut query_player: Query<(&mut AnimationPlayer, Entity), (With<ActionAnimToggle>, With<Pawn>)>,
     res_pawn: Res<PawnRes>,
 ){
     for (mut player, ent) in query_player.iter_mut(){
@@ -217,7 +230,7 @@ pub fn pawn_combination_is_end(
     for (mut player,mut combi, mut trans, gt,entity) in query_pawns.iter_mut(){
         player.pause();
         combi.time += res_time.delta_seconds();
-        let mut move_tarns = (combi.trans.translation() - gt.translation()) * combi.time * 2.;
+        let mut move_tarns = (combi.trans.translation() - gt.translation()) * combi.time * 2.5;
         move_tarns.y = HEX_SIZE / 3. + f32::sin(combi.time * PI*2.) / 4.;
         trans.translation = move_tarns;
 
@@ -266,6 +279,7 @@ pub fn spawn_pawn_event(
                 continue 'eventing;
             }
         }
+        let Some(mut pawn) = commands.get_entity(ev.entity) else {continue};
         let spawn_entity = res_map.entities[&hex_pos];
         if ev.blue_team{
             res_pawn.blue_pawn_list.insert(hex_pos);
@@ -277,7 +291,6 @@ pub fn spawn_pawn_event(
             res_map.red_entities.insert(spawn_entity);
         }
 
-        let mut pawn = commands.entity(ev.entity);
         pawn.insert(ActionAnimToggle);
         let mut spawner = query_player.get_mut(ev.entity).unwrap();
         spawner.play(res_pawn.action_animation.0.clone());
@@ -285,7 +298,9 @@ pub fn spawn_pawn_event(
         
         let mut player = AnimationPlayer::default();
         player.play(res_pawn.spawn_animation.0.clone());
-        commands.entity(spawn_entity).insert(mat.clone());
+        if !res_map.path_list.contains(&hex_pos){
+            commands.entity(spawn_entity).insert(mat.clone());
+        }
         commands.entity(spawn_entity).with_children(|p|{
             let mesh = res_pawn.mesh.clone();
             res_pawn.pawn_list.insert(hex_pos, spawn_pawn(p,mesh,ev.blue_team, hex_pos, mat, player));
@@ -317,6 +332,7 @@ pub fn test_setup(
 pub fn selected_event(
     mut commands: Commands,
     mut events_selected: EventReader<HexSelecedEndEvent>,
+    mut events_other: EventWriter<OtherSpawn>,
     mut res_pawn: ResMut<PawnRes>,
     mut res_map: ResMut<Map>,
     query_transform: Query<&GlobalTransform, With<Honeycomb>>
@@ -335,10 +351,12 @@ pub fn selected_event(
                 let pawn = res_pawn.pawn_list.remove(hex).unwrap();
                 res_pawn.blue_pawn_list.remove(hex);
                 let tile = res_map.entities[hex];
-                res_map.blue_entities.remove(&tile);
-                commands.entity(tile).insert(
-                    res_map.default_mat.clone()
-                );
+                if base_tile != tile{
+                    res_map.blue_entities.remove(&tile);
+                    commands.entity(tile).insert(
+                        res_map.default_mat.clone()
+                    );
+                }
                 commands.entity(pawn).insert(
                     CombinationTarget{
                         trans: query_transform.get(base_tile).unwrap().clone(),
@@ -347,6 +365,11 @@ pub fn selected_event(
                 );
             }
             //이벤트 발생
+            events_other.send(OtherSpawn { 
+                blue_team: true,
+                base_pos: base_hex, 
+                category: SpawnCategory::Bishop
+            });
         }
         else if rook_patton(base_hex, hex_list.clone()){
             let base_tile = res_map.entities[&base_hex];
@@ -354,10 +377,12 @@ pub fn selected_event(
                 let pawn = res_pawn.pawn_list.remove(hex).unwrap();
                 res_pawn.blue_pawn_list.remove(hex);
                 let tile = res_map.entities[hex];
-                res_map.blue_entities.remove(&tile);
-                commands.entity(tile).insert(
-                    res_map.default_mat.clone()
-                );
+                if base_tile != tile{
+                    res_map.blue_entities.remove(&tile);
+                    commands.entity(tile).insert(
+                        res_map.default_mat.clone()
+                    );
+                }
                 commands.entity(pawn).insert(
                     CombinationTarget{
                         trans: query_transform.get(base_tile).unwrap().clone(),
@@ -365,6 +390,36 @@ pub fn selected_event(
                     }
                 );
             }
+            events_other.send(OtherSpawn { 
+                blue_team: true,
+                base_pos: base_hex, 
+                category: SpawnCategory::Rook
+            });
+        }
+        else if knight_patton(base_hex, hex_list.clone()){
+            let base_tile = res_map.entities[&base_hex];
+            for hex in hex_list.iter(){
+                let pawn = res_pawn.pawn_list.remove(hex).unwrap();
+                res_pawn.blue_pawn_list.remove(hex);
+                let tile = res_map.entities[hex];
+                if base_tile != tile{
+                    res_map.blue_entities.remove(&tile);
+                    commands.entity(tile).insert(
+                        res_map.default_mat.clone()
+                    );
+                }
+                commands.entity(pawn).insert(
+                    CombinationTarget{
+                        trans: query_transform.get(base_tile).unwrap().clone(),
+                        time: 0.
+                    }
+                );
+            }
+            events_other.send(OtherSpawn { 
+                blue_team: true,
+                base_pos: base_hex, 
+                category: SpawnCategory::Knight
+            });
         }
     }
 }
@@ -442,6 +497,48 @@ pub fn rook_patton(
 
         [Hex{x: base_hex.x + 1,y: base_hex.y - 1}, Hex{x: base_hex.x,y: base_hex.y - 1}],
         [Hex{x: base_hex.x + 1,y: base_hex.y - 1}, Hex{x: base_hex.x + 1,y: base_hex.y}],
+    ];
+    let mut is_ok = true;
+    for p in patton.iter(){
+        is_ok = true;
+        for pp in p.iter(){
+            if !hex_list.contains(pp){
+                is_ok = false;
+                break;
+            }
+        }
+        if is_ok{
+            break;
+        }
+    }
+    return is_ok;
+}
+
+pub fn knight_patton(
+    base_hex: Hex,
+    hex_list: HashSet<Hex>
+) -> bool{
+    if hex_list.len() != 4{
+        return false;
+    }
+    let patton = [
+        [Hex{x: base_hex.x + 1,y: base_hex.y}, Hex{x: base_hex.x + 2,y: base_hex.y}, Hex{x: base_hex.x + 3,y: base_hex.y - 1}],
+        [Hex{x: base_hex.x + 1,y: base_hex.y}, Hex{x: base_hex.x + 2,y: base_hex.y}, Hex{x: base_hex.x + 2,y: base_hex.y + 1}],
+
+        [Hex{x: base_hex.x - 1,y: base_hex.y}, Hex{x: base_hex.x - 2,y: base_hex.y}, Hex{x: base_hex.x - 2,y: base_hex.y - 1}],
+        [Hex{x: base_hex.x - 1,y: base_hex.y}, Hex{x: base_hex.x - 2,y: base_hex.y}, Hex{x: base_hex.x - 3,y: base_hex.y + 1}],
+
+        [Hex{x: base_hex.x,y: base_hex.y - 1}, Hex{x: base_hex.x,y: base_hex.y - 2}, Hex{x: base_hex.x + 1,y: base_hex.y - 3}],
+        [Hex{x: base_hex.x,y: base_hex.y - 1}, Hex{x: base_hex.x,y: base_hex.y - 2}, Hex{x: base_hex.x - 1,y: base_hex.y - 2}],
+
+        [Hex{x: base_hex.x,y: base_hex.y + 1}, Hex{x: base_hex.x,y: base_hex.y + 2}, Hex{x: base_hex.x + 1,y: base_hex.y + 2}],
+        [Hex{x: base_hex.x,y: base_hex.y + 1}, Hex{x: base_hex.x,y: base_hex.y + 2}, Hex{x: base_hex.x - 1,y: base_hex.y + 3}],
+
+        [Hex{x: base_hex.x + 1,y: base_hex.y - 1}, Hex{x: base_hex.x + 2,y: base_hex.y - 2}, Hex{x: base_hex.x + 2,y: base_hex.y - 3}],
+        [Hex{x: base_hex.x + 1,y: base_hex.y - 1}, Hex{x: base_hex.x + 2,y: base_hex.y - 2}, Hex{x: base_hex.x + 3,y: base_hex.y - 2}],
+
+        [Hex{x: base_hex.x - 1,y: base_hex.y + 1}, Hex{x: base_hex.x - 2,y: base_hex.y + 2}, Hex{x: base_hex.x - 2,y: base_hex.y + 3}],
+        [Hex{x: base_hex.x - 1,y: base_hex.y + 1}, Hex{x: base_hex.x - 2,y: base_hex.y + 2}, Hex{x: base_hex.x - 3,y: base_hex.y + 2}],
     ];
     let mut is_ok = true;
     for p in patton.iter(){

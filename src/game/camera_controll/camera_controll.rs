@@ -29,7 +29,7 @@ pub fn camera_spawn(
     mut commands: Commands,
 ){
     let location = Transform::from_xyz(
-        0.,6.,13.
+        0.,10.,13.
     ).looking_at(Vec3::ZERO, Vec3::Y);
     let camera = commands.spawn((
         Camera3dBundle{
