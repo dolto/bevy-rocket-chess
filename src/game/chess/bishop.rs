@@ -4,7 +4,7 @@ use bevy::{prelude::*, input::mouse::MouseButtonInput};
 use bevy_mod_picking::prelude::{On, Click, Pointer, Listener, PointerButton};
 use hexx::Hex;
 
-use crate::game::graphics_3d::honeycomb::{HEX_SIZE, MAP_RADIUS, Map};
+use crate::game::graphics_3d::honeycomb::{HEX_SIZE, MAP_RADIUS, Map, Honeycomb};
 
 use super::pawn::{SpawnAnimToggle, OtherSpawn, SpawnCategory};
 
@@ -17,13 +17,21 @@ pub struct BishopRes{
     red_bishop_list: HashSet<Hex>,
     spawn_animation: (Handle<AnimationClip>, Name),
     idle_animation: (Handle<AnimationClip>, Name),
+    control_target: Option<Hex>
 }
 
 #[derive(Component)]
 pub struct Bishop{
-    attack_target: Hex,
     blue_team: bool,
-    pos: Hex
+    pos: Hex,
+    is_atack: bool
+}
+
+#[derive(Component)]
+pub struct BishopAttack{
+    attack_target: Hex,
+    speed: f32,
+    move_time: f32
 }
 
 #[derive(Component)]
@@ -83,6 +91,7 @@ pub fn setup_asset_bishop(
             bishop_list: HashMap::with_capacity(map_size),
             spawn_animation: (spawn_animation_handle, spawn_anim),
             idle_animation:(idle_animation_handle, idle_anim),
+            control_target: None
         }
     );
 }
@@ -110,6 +119,7 @@ pub fn bishop_spawn_event(
                 trans.scale = Vec3{x:0.4, y:0.4, z:0.4};
 
                 let tile = res_map.entities[&ev.base_pos];
+                res_map.blue_entities.insert(tile);
                 let mut entity = Entity::from_bits(0);
                 commands.entity(tile).with_children(|p|{
                     entity = p.spawn(
@@ -121,9 +131,9 @@ pub fn bishop_spawn_event(
                                 ..Default::default()
                             },
                             Bishop{
-                                attack_target: ev.base_pos,
                                 blue_team: ev.blue_team,
                                 pos: ev.base_pos,
+                                is_atack: false
                             },
                             res_bishop.spawn_animation.1.clone(),
                             player,
@@ -131,7 +141,6 @@ pub fn bishop_spawn_event(
                         )
                     ).id();
                     res_bishop.bishop_list.insert(ev.base_pos, entity);
-                    res_map.blue_entities.insert(entity);
                 });
                 commands.entity(tile).insert(
                   On::<Pointer<Click>>::run(on_bishop_click)
@@ -147,11 +156,13 @@ pub fn bishop_spawn_event(
 fn on_bishop_click(
     mut commands: Commands,
     event: Listener<Pointer<Click>>,
-    mut res_map: ResMut<Map>
+    mut res_map: ResMut<Map>,
+    mut res_bishop: ResMut<BishopRes>
 ){
     if event.button == PointerButton::Primary{
         let target = event.target;
         let base_tile = res_map.entities_forentity[&target];
+        res_bishop.control_target = Some(base_tile);
         let mut count = Hex{x: 1, y: 0};
         loop {
             let paint_tile = base_tile + count;
@@ -159,6 +170,9 @@ fn on_bishop_click(
             if res_map.red_entities.contains(block){
                 break;
             }
+            commands.entity(block.clone()).insert(
+                On::<Pointer<Click>>::run(on_bishop_path_set_10)  
+            );
             res_map.path_list.insert(paint_tile);
             count += Hex{x:1, y:0};
         }
@@ -169,6 +183,9 @@ fn on_bishop_click(
             if res_map.red_entities.contains(block){
                 break;
             }
+            commands.entity(block.clone()).insert(
+                On::<Pointer<Click>>::run(on_bishop_path_set_m10)  
+            );
             res_map.path_list.insert(paint_tile);
             count += Hex{x:-1, y:0};
         }
@@ -179,6 +196,9 @@ fn on_bishop_click(
             if res_map.red_entities.contains(block){
                 break;
             }
+            commands.entity(block.clone()).insert(
+                On::<Pointer<Click>>::run(on_bishop_path_set_01)  
+            );
             res_map.path_list.insert(paint_tile);
             count += Hex{x:0, y:1};
         }
@@ -189,6 +209,9 @@ fn on_bishop_click(
             if res_map.red_entities.contains(block){
                 break;
             }
+            commands.entity(block.clone()).insert(
+                On::<Pointer<Click>>::run(on_bishop_path_set_0m1)  
+            );
             res_map.path_list.insert(paint_tile);
             count += Hex{x:0, y:-1};
         }
@@ -199,6 +222,9 @@ fn on_bishop_click(
             if res_map.red_entities.contains(block){
                 break;
             }
+            commands.entity(block.clone()).insert(
+                On::<Pointer<Click>>::run(on_bishop_path_set_1m1)  
+            );
             res_map.path_list.insert(paint_tile);
             count += Hex{x:1, y:-1};
         }
@@ -209,6 +235,9 @@ fn on_bishop_click(
             if res_map.red_entities.contains(block){
                 break;
             }
+            commands.entity(block.clone()).insert(
+                On::<Pointer<Click>>::run(on_bishop_path_set_m11)  
+            );
             res_map.path_list.insert(paint_tile);
             count += Hex{x:-1, y:1};
         }
@@ -216,7 +245,7 @@ fn on_bishop_click(
         for m in res_map.path_list.iter(){
             let entity = res_map.entities[m];
             commands.entity(entity).insert(
-                res_map.path_mat.clone()
+                res_map.path_mat.clone(),
             );
         }
     }
@@ -225,10 +254,11 @@ fn on_bishop_click(
 pub fn cancel_path(
     mut commands: Commands,
     mut events_click: EventReader<MouseButtonInput>,
-    mut res_map: ResMut<Map>
+    mut res_map: ResMut<Map>,
+    mut res_bishop: ResMut<BishopRes>
 ){
     for ev in events_click.iter(){
-        if ev.button == MouseButton::Left{
+        if ev.button == MouseButton::Left && !res_map.path_mod && res_bishop.control_target.is_none(){
             for m in res_map.path_list.iter(){
                 let entity = res_map.entities[m];
                 commands.entity(entity).insert(
@@ -240,10 +270,126 @@ pub fn cancel_path(
                         res_map.default_mat.clone()
                     }
                 );
+                commands.entity(entity).remove::<On::<Pointer<Click>>>();
             }
             res_map.path_list.clear();
         }
     }
+}
+
+fn on_bishop_path_set_10(
+    mut commands: Commands,
+    event: Listener<Pointer<Click>>,
+    mut res_bishop: ResMut<BishopRes>,
+){
+    if let Some(control) = res_bishop.control_target{
+        let bishop_entity = res_bishop.bishop_list[&control];
+        if event.button == PointerButton::Primary{
+            commands.entity(bishop_entity).insert(
+                BishopAttack{
+                    attack_target: Hex::new(1,0),
+                    speed: 1.,
+                    move_time: 0.
+                }  
+            );
+        }
+        res_bishop.control_target = None;
+    };
+}
+fn on_bishop_path_set_01(
+    mut commands: Commands,
+    event: Listener<Pointer<Click>>,
+    mut res_bishop: ResMut<BishopRes>,
+){
+    if let Some(control) = res_bishop.control_target{
+        let bishop_entity = res_bishop.bishop_list[&control];
+        if event.button == PointerButton::Primary{
+            commands.entity(bishop_entity).insert(
+                BishopAttack{
+                    attack_target: Hex::new(0,1),
+                    speed: 1.,
+                    move_time: 0.
+                }  
+            );
+        }
+        res_bishop.control_target = None;
+    };
+}
+fn on_bishop_path_set_m10(
+    mut commands: Commands,
+    event: Listener<Pointer<Click>>,
+    mut res_bishop: ResMut<BishopRes>,
+){
+    if let Some(control) = res_bishop.control_target{
+        let bishop_entity = res_bishop.bishop_list[&control];
+        if event.button == PointerButton::Primary{
+            commands.entity(bishop_entity).insert(
+                BishopAttack{
+                    attack_target: Hex::new(-1,0),
+                    speed: 1.,
+                    move_time: 0.
+                }  
+            );
+        }
+        res_bishop.control_target = None;
+    };
+}
+fn on_bishop_path_set_0m1(
+    mut commands: Commands,
+    event: Listener<Pointer<Click>>,
+    mut res_bishop: ResMut<BishopRes>,
+){
+    if let Some(control) = res_bishop.control_target{
+        let bishop_entity = res_bishop.bishop_list[&control];
+        if event.button == PointerButton::Primary{
+            commands.entity(bishop_entity).insert(
+                BishopAttack{
+                    attack_target: Hex::new(0,-1),
+                    speed: 1.,
+                    move_time: 0.
+                }  
+            );
+        }
+        res_bishop.control_target = None;
+    };
+}
+fn on_bishop_path_set_m11(
+    mut commands: Commands,
+    event: Listener<Pointer<Click>>,
+    mut res_bishop: ResMut<BishopRes>,
+){
+    if let Some(control) = res_bishop.control_target{
+        let bishop_entity = res_bishop.bishop_list[&control];
+        if event.button == PointerButton::Primary{
+            commands.entity(bishop_entity).insert(
+                BishopAttack{
+                    attack_target: Hex::new(-1,1),
+                    speed: 1.,
+                    move_time: 0.
+                }  
+            );
+        }
+        res_bishop.control_target = None;
+    };
+}
+fn on_bishop_path_set_1m1(
+    mut commands: Commands,
+    event: Listener<Pointer<Click>>,
+    mut res_bishop: ResMut<BishopRes>,
+){
+    if let Some(control) = res_bishop.control_target{
+        let bishop_entity = res_bishop.bishop_list[&control];
+        if event.button == PointerButton::Primary{
+            commands.entity(bishop_entity).insert(
+                BishopAttack{
+                    attack_target: Hex::new(1,-1),
+                    speed: 1.,
+                    move_time: 0.
+                }  
+            );
+        }
+        res_bishop.control_target = None;
+    };
 }
 
 pub fn bishop_spawn_anim_is_end(
@@ -257,6 +403,60 @@ pub fn bishop_spawn_anim_is_end(
             entity.remove::<SpawnAnimToggle>();
             player.play(res_bishop.idle_animation.0.clone()).repeat();
             entity.insert(res_bishop.idle_animation.1.clone());
+        }
+    }
+}
+
+pub fn bishop_attacking(
+    mut commands: Commands,
+    mut query_bishop: Query<(Entity,&mut Bishop, &mut BishopAttack, &GlobalTransform, &mut Transform)>,
+    query_transform: Query<&GlobalTransform, With<Honeycomb>>,
+    mut res_bishop: ResMut<BishopRes>,
+    mut res_map: ResMut<Map>,
+    res_time: Res<Time>
+){
+    for (entity,mut bishop, mut bishopat, globalt,mut trans)
+     in query_bishop.iter_mut(){
+        let tile = res_map.entities[&bishop.pos];
+        if !bishop.is_atack{
+            res_bishop.bishop_list.remove(&bishop.pos);
+            commands.entity(tile).remove::<On::<Pointer<Click>>>();
+            if bishop.blue_team{
+                res_map.blue_entities.remove(&tile);
+                res_bishop.blue_bishop_list.remove(&bishop.pos);
+            }else{
+                res_map.red_entities.remove(&tile);
+                res_bishop.red_bishop_list.remove(&bishop.pos);
+            }
+            bishop.is_atack = true;
+        }
+        if res_map.red_entities.contains(&tile){
+            commands.entity(entity).despawn();
+            //원래는 여기에 록이 있는지 확인 후 폭팔해야함
+        }else{
+            let delta = res_time.delta_seconds();
+            bishopat.move_time += delta * bishopat.speed;
+            bishopat.speed += delta;
+
+            let target_pos = bishop.pos + bishopat.attack_target;
+            let target_entity = res_map.entities.get(&target_pos);
+            if target_entity.is_some(){
+                let target_entity = target_entity.unwrap();
+                let target_tarns = query_transform.get(target_entity.clone()).unwrap().translation();
+                let base_pos_trans = query_transform.get(res_map.entities[&bishop.pos]).unwrap().translation();
+
+                let move_trans = base_pos_trans * bishopat.move_time.max(1.) + target_tarns * (1. - bishopat.move_time.max(1.));
+                trans.translation = globalt.translation() - move_trans;
+                trans.rotation = Quat::from_euler(EulerRot::XYZ, PI / 4., 0., 0.);
+                trans.look_at(target_tarns, Vec3::Y);
+
+                if bishopat.move_time > 1. {
+                    bishop.pos = target_pos;
+                    bishopat.move_time = 0.;
+                }
+            }else{
+                commands.entity(entity).despawn();
+            }
         }
     }
 }

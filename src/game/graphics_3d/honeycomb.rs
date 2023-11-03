@@ -1,7 +1,7 @@
 use std::{f32::consts::PI, collections::{HashMap, HashSet}};
 
 use bevy::{prelude::*, render::render_resource::PrimitiveTopology, input::mouse::MouseButtonInput};
-use bevy_mod_picking::{PickableBundle, prelude::{Pointer, On, Listener, Over, Out, RaycastPickTarget, Click, Down}};
+use bevy_mod_picking::{PickableBundle, prelude::{Pointer, On, Listener, Over, Out, RaycastPickTarget, Down}};
 use hexx::*;
 // use wasm_bindgen::JsValue;
 // use web_sys::console;
@@ -86,6 +86,7 @@ pub struct Map {
     pub path_mat: Handle<StandardMaterial>,
     pub highlite_mat :Handle<StandardMaterial>,
     pub seleced_mod: bool,
+    pub path_mod: bool
 }
 
 #[derive(Component)]
@@ -158,6 +159,7 @@ pub fn setup_grid(
         blue_entities: Default::default(),
         red_entities: Default::default(),
         seleced_mod: false,
+        path_mod: false,
         selected_base: Hex::ZERO
     };
     //console::log_1(&JsValue::from_str(format!("{:?}\n", map).as_str()));
@@ -207,8 +209,9 @@ fn on_over(
     mut grid: ResMut<Map>
 ){
     let target = event.target;
+    let grid_target = grid.entities_forentity[&target];
     if grid.seleced_mod{
-        let seleced_hex = grid.entities_forentity[&target];
+        let seleced_hex = grid_target;
         grid.selected_list.insert(seleced_hex);
         commands.entity(target).insert(
             grid.highlite_mat.clone()
@@ -218,6 +221,7 @@ fn on_over(
             grid.highlite_mat.clone()
         );
     }
+    grid.path_mod = grid.path_list.contains(&grid_target);
 }
 
 fn on_out(
@@ -258,11 +262,4 @@ fn on_click(
             grid.highlite_mat.clone()
         );
     }
-}
-fn on_click2(
-    mut commands: Commands,
-    event: Listener<Pointer<Down>>,
-    mut grid: ResMut<Map>
-){
-    println!("더한 클릭!");
 }

@@ -313,20 +313,38 @@ pub fn test_setup(
     mut res_pawn: ResMut<PawnRes>,
     mut res_map: ResMut<Map>
 ){
-    let pos = (MAP_RADIUS) as i32;
-    let hex_pos = Hex{x:pos, y:0};
-    let entity = res_map.entities[&hex_pos];
-    res_pawn.blue_pawn_list.insert(hex_pos);
-    let mat = res_map.blue_mat.clone();
-    res_map.blue_entities.insert(entity);
-    commands.entity(entity).insert(mat.clone());
-    let spawn_entity = res_map.entities[&hex_pos];
-    let mut player = AnimationPlayer::default();
-    player.play(res_pawn.spawn_animation.0.clone());
-    commands.entity(spawn_entity).with_children(|p|{
-        let mesh = res_pawn.mesh.clone();
-        res_pawn.pawn_list.insert(hex_pos, spawn_pawn(p, mesh ,true, hex_pos, mat,player));
-    });
+    {
+        let pos = (MAP_RADIUS) as i32;
+        let hex_pos = Hex{x:pos, y:0};
+        let entity = res_map.entities[&hex_pos];
+        res_pawn.blue_pawn_list.insert(hex_pos);
+        let mat = res_map.blue_mat.clone();
+        res_map.blue_entities.insert(entity);
+        commands.entity(entity).insert(mat.clone());
+        let spawn_entity = res_map.entities[&hex_pos];
+        let mut player = AnimationPlayer::default();
+        player.play(res_pawn.spawn_animation.0.clone());
+        commands.entity(spawn_entity).with_children(|p|{
+            let mesh = res_pawn.mesh.clone();
+            res_pawn.pawn_list.insert(hex_pos, spawn_pawn(p, mesh ,true, hex_pos, mat,player));
+        });
+    }
+    {
+        let pos = (MAP_RADIUS) as i32;
+        let hex_pos = Hex{x:pos * -1, y:0};
+        let entity = res_map.entities[&hex_pos];
+        res_pawn.red_pawn_list.insert(hex_pos);
+        let mat = res_map.red_mat.clone();
+        res_map.red_entities.insert(entity);
+        commands.entity(entity).insert(mat.clone());
+        let spawn_entity = res_map.entities[&hex_pos];
+        let mut player = AnimationPlayer::default();
+        player.play(res_pawn.spawn_animation.0.clone());
+        commands.entity(spawn_entity).with_children(|p|{
+            let mesh = res_pawn.mesh.clone();
+            res_pawn.pawn_list.insert(hex_pos, spawn_pawn(p, mesh ,false, hex_pos, mat,player));
+        });
+    }
 }
 
 pub fn selected_event(

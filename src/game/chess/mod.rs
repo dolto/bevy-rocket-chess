@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-use self::{pawn::{setup_asset_pawn, test_setup, spawn_pawn_timer, spawn_pawn_event, PawnSpawn, PawnSetup, pawn_spawn_anim_is_end, pawn_action_anim_is_end, selected_event, pawn_combination_is_end, OtherSpawn}, bishop::{setup_asset_bishop, bishop_spawn_event, bishop_spawn_anim_is_end, cancel_path}};
+use self::{pawn::{setup_asset_pawn, test_setup, spawn_pawn_timer, spawn_pawn_event, PawnSpawn, PawnSetup, pawn_spawn_anim_is_end, pawn_action_anim_is_end, selected_event, pawn_combination_is_end, OtherSpawn}, bishop::{setup_asset_bishop, bishop_spawn_event, bishop_spawn_anim_is_end, cancel_path, bishop_attacking}};
 
 mod pawn;
 mod bishop;
@@ -42,6 +42,7 @@ impl Plugin for ChessGamePlugin {
             ).in_set(ScadulSet::Spawn),
             (
                 pawn_combination_is_end,
+                bishop_attacking
             ).before(ScadulSet::Spawn)
         ));
     }
